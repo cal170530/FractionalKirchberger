@@ -1,5 +1,5 @@
-T = 10;
-d = 3;
+T = 100;
+d = 2;
 numpoints = 10;
 betaActual = zeros(1,T)
 FK= zeros(1,T)
@@ -15,13 +15,13 @@ linem = zeros(1,T);
 lineb= zeros(1,T);
 plotsingle = 0;
 
-for d = 3:3
+for d = 2:2
 for trial = 1:T
 
 A = numpoints;
 B = numpoints;
-%[a,b] = setBeta(A,B,.45+.05*trial);
-[a,b] = uniform(A,B,d);
+[a,b] = setBeta(A,B,.45+.05*trial);
+%[a,b] = uniform(A,B,d);
 ahist(:,:,trial) = a;
 bhist(:,:,trial) = b;
 %a = [-6 0; -2 0; 2 0; 6 0; 10 0];
@@ -32,8 +32,8 @@ Y= [ zeros(A,1);ones(B,1)];
 [Mdl, FitInfo] = fitclinear(X,Y)
 betaActual(1,trial) = (1-loss(Mdl,X,Y))
 %}
-%[betaActual(1,trial), linem(1,trial), lineb(1,trial)] = weakseparator(a,b,d);
-[betaActual(1,trial), a1(1,trial),a2(1,trial),a3(1,trial),a4(1,trial)] = weakseparator(a,b,d);
+[betaActual(1,trial), linem(1,trial), lineb(1,trial)] = weakseparator(a,b,d);
+%[betaActual(1,trial), a1(1,trial),a2(1,trial),a3(1,trial),a4(1,trial)] = weakseparator(a,b,d);
 betaActual(1,trial) = betaActual(1,trial)/(A+B);
 U = [X Y];
 p0 = U(1,:);
@@ -65,7 +65,7 @@ percentsep(1,trial) = separableTuples/comblength;
 alpha = sum(separability)/comblength;
 FK(1,trial) = alpha;
 betaTheory(1,trial) = (rFinder(separableTuples,(A+B)-1,d)+d+2)/(A+B);
-
+save('FK_n_'+string(A+B)+'_T_'+string(T));
 if plotsingle == 1;
 scatter(ahist(:,1,T),ahist(:,2,T)); hold on; scatter(bhist(:,1,T),bhist(:,2,T));hold on;
 x = linspace(-20,20);
@@ -125,7 +125,6 @@ f = zeros(1,d);
 separable1 = any(logical(linprog(f,A1,bs1)));
 separable2 = any(logical(linprog(f,A2,bs2)));
 separable = separable1||separable2;
-
 end
 end
 
