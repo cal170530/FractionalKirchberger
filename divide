@@ -1,0 +1,14 @@
+function [a,b,linem,lineb] = dividePoints(n,d)
+linem = randi(10)/randi(10);
+lineb = randi(10)-6;
+a = zeros(n,2);
+b = zeros(n,2);
+for i = 1:n
+    a(i,1) = (rand()-.5)*50;
+    b(i,1) = (rand()-.5)*50;
+    a(i,2) = linem*a(i,1)+lineb;
+    a(i,2) = a(i,2)+(50-a(i,2))*rand();
+    b(i,2) = linem*b(i,1)+lineb;
+    b(i,2) = b(i,2)-(50-b(i,2))*rand();
+end
+end
