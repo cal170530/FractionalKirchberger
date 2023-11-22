@@ -1,8 +1,8 @@
-T = 5;
+T = 10;
 d = 2;
 numpoints = 50;
-betaActual = zeros(1,T)
-FK= zeros(1,T)
+betaActual = zeros(1,T);
+FK= zeros(1,T);
 betaTheory = zeros(1,T);
 betaTheory_sample = zeros(1,T);
 betaTheory_sample2 = zeros(1,T);
@@ -15,6 +15,9 @@ a3=zeros(1,T);
 a4= zeros(1,T);
 linem = zeros(1,T);
 lineb= zeros(1,T);
+alpha = zeros(1,T);
+alpha_sample = zeros(1,T);
+alpha_sample2 = zeros(1,T);
 plotsingle = 0;
 gen = 1;
 for d = 2:2
@@ -27,7 +30,7 @@ if gen == 1
 %x = linspace(-25,25);
 %y = linem*x+lineb;
 %plot(x,y);
-for indx = 1:T
+for indx = 1:trial
     atemp = a(indx,:);
     btemp = b(indx,:);
     a(indx,:) = btemp;
@@ -49,11 +52,11 @@ U = [X Y];
 %[betaActual(1,trial), a1(1,trial),a2(1,trial),a3(1,trial),a4(1,trial)] = weakseparator(a,b,d);
 betaActual(1,trial) = betaActual(1,trial)/(A+B);
 
-
+for samp_percent = .01:.01:.1
 [C,Cn] = dptuples(U,d);
 comblength = size(C,3);
 separableTuples = 0;
-sampleSize= round((.1+.1*t)*comblength); 
+sampleSize= round((samp_percent)*comblength); 
 
 %%%%%Setup for Sampling Test Results%%%%%%%%
 separability = zeros(1,comblength);
@@ -62,14 +65,15 @@ samples= datasample(1:comblength,sampleSize,'Replace',false);
 separableSamples = 0; 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %%%%%Setup for Sampling point subsets%%%%%%%%%
-sampleSize2 = round((.1+.1*t)*(A+B));
+
+sampleSize2 = round(samp_percent*(A+B));
 samplePoints2 = datasample(1:(A+B),sampleSize2,'Replace',false);
-sampleTuples2 = combnk(samplePoints,d+1);
+sampleTuples2 = combnk(samplePoints2,d+1);
 separability2 = zeros(1,comblength);
 sampleseparability2 = zeros(1,size(sampleTuples2,1));
 Cn = sort(Cn,2);
-sampleTuples2 = sort(sampleTuples,2);
-sampleTuples2 = sortrows(sampleTuples);
+sampleTuples2 = sort(sampleTuples2,2);
+sampleTuples2 = sortrows(sampleTuples2);
 separableSamples2 = 0;
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
@@ -110,15 +114,16 @@ if (sum(sampleseparability2(1,:)) > separableSamples2)
 end
 end
 percentsep(1,trial) = separableTuples/comblength;
-alpha = separableTuples/comblength;
-alpha_sample = separableSamples/sampleSize;
-alpha_sample2 = separableSamples2/size(sampleTuples2,1);
-FK(1,trial) = alpha;
+alpha(1,trial) = separableTuples/comblength;
+alpha_sample(1,trial) = separableSamples/sampleSize;
+alpha_sample2(1,trial) = separableSamples2/size(sampleTuples2,1);
+FK(1,trial) = alpha(1,trial);
 betaTheory(1,trial) = (rFinder(separableTuples,(A+B),d)+d+1)/(A+B);
-betaTheory_sample(1,trial) = (rFinder(alpha_sample*comblength,(A+B),d)+d+1)/(A+B);
-betaTheory_sample2(1,trial) = (rFinder(separableSamples,size(samplePoints,2),d)+d+1)/(size(samplePoints2,2));
-
-save('FK_Sampling_'+string(A+B)+'_T_'+string(T));
+betaTheory_sample(1,trial) = (rFinder(alpha_sample(1,trial)*comblength,(A+B),d)+d+1)/(A+B);
+betaTheory_sample2(1,trial) = (rFinder(separableSamples2,size(samplePoints2,2),d)+d+1)/(size(samplePoints2,2));
+if trial == 10
+save('FK_Sampling_'+string(samp_percent)+'_T_'+string(trial));
+end
 if plotsingle == 1;
     scatter(ahist(:,1,T),ahist(:,2,T)); hold on; scatter(bhist(:,1,T),bhist(:,2,T));hold on;
     x = linspace(-20,20);
@@ -133,12 +138,15 @@ if plotsingle == 1;
 end
 
 %[r pk fk] = rFinder(alpha,(A+B),d);
+end 
+
 end
 end
 
 
 function [C] = dpptuples(U,d)
-length = size(U,1);    
+length = size(U,1) 
+;    
 Cn = combnk(1:length,d+2);
 Cnsize = size(Cn,1);
 C = zeros(4,size(U,2),Cnsize)
@@ -149,7 +157,7 @@ for i = 1:Cnsize
     C(4,:,i) = U(Cn(i,4),:);
 end
 end
-function[C] = dptuples(U,d,p)
+function[C,Cn] = dptuples(U,d,p)
 length = size(U,1);
 Cn = combnk(1:length,d+1);
 Cnsize = size(Cn,1);
@@ -280,14 +288,16 @@ for n = 1:numpoints
 end
 end
 function [a,b,linem,lineb] = dividePoints(n,d)
-linem = randi(10)/randi(10);
+linem = randi(5)/randi(5);
 lineb = randi(10)-6;
 a = zeros(n,2);
 b = zeros(n,2);
 for i = 1:n
     a(i,1) = (rand()-.5)*50;
     b(i,1) = (rand()-.5)*50;
-    a(i,2) = linem*a(i,1)+lineb+rand()*(50-linem*a(i,1)-lineb);
-    b(i,2) = linem*b(i,1)+lineb-rand()*(50-linem*b(i,1)-lineb);
+    a(i,2) = linem*a(i,1)+lineb;
+    a(i,2) = a(i,2)+(250-a(i,2))*rand();
+    b(i,2) = linem*b(i,1)+lineb;
+    b(i,2) = b(i,2)-(250-b(i,2))*rand();
 end
 end
