@@ -1,0 +1,296 @@
+function varargout = FK_experiment(d,numpoints,T,instances)
+%FK_experiment - given two point classes of the same number of points in
+%dimension d, this function: 
+% 1) Produces linearly separable configurations of points(instances) in dimension d. 
+% 2) For each instance produced in 1, a set of T new configurations are produced by swapping 1,2,..,T
+%    pairs of labels between points of each class. This should produce a
+%    range of beta values, where beta is the proportion of points correctly
+%    classified by an optimal linear separator.
+% ----The remaining steps are repeated for each subconfiguration(2) of each
+% ---- point configuration(1):
+%    3) Brute force search for the optimal linear classifier and obtain beta. 
+%    4) Compute alpha. 
+%    5) For a range of sample sizes over the (d+2) subsets, compute alpha_sample
+%    6) from alpha and alpha_sample, obtain beta_theory and beta_sample. 
+%    7) Store alpha, alpha_sample, beta, beta_theory, beta_sample.  Store
+%    point configuration data. 
+%
+%
+%EXAMPLE:
+%
+%  
+switch nargin
+    case(2)
+        T = 10;
+        instances = 10;
+    case(3)
+        instances = 10;
+end
+
+instances = 1;
+betaActual = zeros(instances,T);
+betaTheory = zeros(instances,T);
+betaTheory_sample = zeros(15,instances,T);
+alpha = zeros(instances,T);
+alpha_sample = zeros(15,instances,T);
+
+ahist = zeros(2*numpoints,d,instances,T);
+bhist = zeros(2*numpoints,d,instances,T);
+cf = zeros(d+1,instances,T);
+
+
+
+for trial = 1:T
+    for inst = 1:instances
+        [a,b] = dividePoints(numpoints,d);
+
+        for indx = 1:trial
+            atemp = a(indx,:);
+            btemp = b(indx,:);
+            a(indx,:) = btemp;
+            b(indx,:) = atemp;
+        end
+
+        A = size(a,1);
+        B = size(b,1);
+
+        ahist(1:A,:,inst,trial) = a;
+        bhist(1:B,:,inst,trial) = b;
+
+
+
+        X = [a;b];
+        Y= [ zeros(A,1);ones(B,1)];
+        U = [X Y];
+        [maxdepth, cf(:,inst,trial)] = weakseparator(a,b,d);
+
+        betaActual(inst,trial) = maxdepth/(A+B);
+        samp_idx = 1;
+        %for samp_percent = .01:.018,.1
+            [C,Cn] = dptuples(U,d);
+            comblength = size(C,3);
+            separableTuples = 0;
+         %   sampleSize= round((samp_percent)*comblength); 
+
+%%%%%Setup for Sampling Test Results%%%%%%%%
+          %  separability = zeros(1,comblength);
+           % sampleseparability = zeros(1,sampleSize);
+            %samples= datasample(1:comblength,sampleSize,'Replace',false);
+            %separableSamples = 0; 
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+                for dir = -1:2:1
+                  
+    
+                    for i = 1:comblength
+                        aindex= find(C(:,d+1,i) == 0);
+                        bindex = find(C(:,d+1,i) == 1);
+                        if (aindex)
+                            atest = C(aindex,1:d,i);
+                        else
+                            atest = [];
+                        end
+                        if(bindex)
+                            btest = C(bindex,1:d,i);  
+                        else
+                            btest = [];
+                        end
+                        separability(1,i) = testsep(atest,btest,d,dir);
+                        %if any(samples(1,:) == i)
+                         %   sampleseparability(1,j) = separability(1,i);
+                          %  j = j+1;
+                        %end
+ 
+                    end
+                    if (sum(separability(1,:))>separableTuples)
+                        separableTuples = sum(separability(1,:));
+                        samplereference = separability(1,:);
+                    end
+                    %if (sum(sampleseparability(1,:)) > separableSamples)
+                     %   separableSamples = sum(sampleseparability(1,:));
+                    %end
+
+                end
+                samp_idx = 1;
+
+                for samp_percent = .01:.02,.15 
+                  sampleSize= round((samp_percent)*comblength); 
+
+                  %%%%%Setup for Sampling Test Results%%%%%%%%
+                  
+                  sampleseparability = zeros(1,sampleSize);
+                  samples= datasample(1:comblength,sampleSize,'Replace',false);
+                  separableSamples = 0; 
+                  j = 1;
+                    for i = 1:comblength
+                            if any(samples(1,:) == i)
+                            sampleseparability(1,j) = samplereference(1,i);
+                            j = j+1;
+                            end
+                    end
+                    separableSamples = sum(sampleseparability(1,:));
+                    alpha_sample(samp_idx,inst,trial) = separableSamples/sampleSize;
+                    betaTheory_sample(samp_idx,inst,trial) = (rFinder(alpha_sample(samp_idx,inst,trial)*comblength,(A+B),d)+d+1)/(A+B);
+                    samp_idx = samp_idx+1;
+                    end
+            alpha(inst,trial) = separableTuples/comblength;
+           % alpha_sample(samp_idx,inst,trial) = separableSamples/sampleSize;
+
+            betaTheory(inst,trial) = (rFinder(separableTuples,(A+B),d)+d+1)/(A+B);
+           % betaTheory_sample(samp_idx,inst,trial) = (rFinder(alpha_sample(samp_idx,inst,trial)*comblength,(A+B),d)+d+1)/(A+B);
+            
+            
+            save('FK_SamplingLATEST'+'_T_'+string(trial));
+            
+        end 
+
+    end
+
+switch nargout
+    case(3)
+        varargout = {betaActual,betaTheory,betaTheory_sample};
+    case(4)
+        varargout = {betaActual,betaTheory,betaTheory_sample,alpha};
+    case(5)
+        varargout = {betaActual,betaTheory,betaTheory_sample,alpha,alpha_sample};
+    case(6) 
+        varargout = {betaActual,betaTheory,betaTheory_sample,alpha,alpha_sample,cf}
+end
+
+
+
+function [C] = dpptuples(U,d)
+length = size(U,1);   
+Cn = combnk(1:length,d+2);
+Cnsize = size(Cn,1);
+C = zeros(4,size(U,2),Cnsize)
+    for i = 1:Cnsize
+        for j = 1:d+2
+        C(j,:,i) = U(Cn(i,j),:);
+        end
+    end
+end
+
+function[C,Cn] = dptuples(U,d,p)
+length = size(U,1);
+Cn = combnk(1:length,d+1);
+Cnsize = size(Cn,1);
+C = zeros(d+1,size(U,2),Cnsize);
+    for i = 1:Cnsize
+        for j = 1:d+1
+            C(j,:,i) = U(Cn(i,j),:);
+        end
+    end
+end
+
+function [separable] = testsep(a,b,d,dir)
+sizea = size(a,1);
+sizeb = size(b,1);
+    if sizea== d+1 || sizeb == d+1
+        separable = 1;
+    else
+        A1 = [-a; b];
+        bs1 = [ones(1,sizea) -ones(1,sizeb)];
+        A2= [a;-b];
+        bs2 = [-ones(1,sizea) ones(1,sizeb)];
+        f = zeros(1,d);
+        if dir >0
+            separable = any(logical(linprog(f,A1,bs1)));
+        else
+            separable = any(logical(linprog(f,A2,bs2)));
+        end
+
+    end
+end
+
+function [a,b] = uniform(A,B,d)
+a = zeros(A,d);
+b = zeros(B,d);
+for n = 1:A
+    r = zeros(1,d);
+   for i = 1:d
+       r(1,i) = ((rand()-.5)*50);
+   end
+a(n,:) =r;
+end
+for n = 1:B
+r = zeros(1,d);
+    for i = 1:d
+        r(1,i) = ((rand()-.5)*50);
+    end
+b(n,:) =r;
+end    
+end
+
+function [a,b]= normal(A,B,d,Amean,Bmean,Astd,Bstd)
+
+a = zeros(A,d);
+b = zeros(B,d);
+for n = 1:A
+    a(n,:) = Astd*randn(1,d)+Amean;
+end
+for n = 1:B
+    b(n,:) = Bstd*randn(1,d)+Bmean;
+end    
+end
+
+
+function rmax = rFinder(alpha,n,d)
+k = d+1;
+%limit = alpha*nchoosek(n,k);
+limit = alpha;
+for r = k:n-d
+    pk = 0;
+    for i = 0:d
+        pk = pk+nchoosek(r,(k-i))*nchoosek(n-r,i);
+    end
+    if limit <= pk
+        rmax = r-1;
+        break;
+    end
+end
+end
+
+function [a,b] = randpos_labels(numpoints,d,p)
+
+a = [];
+b = [];
+for n = 1:numpoints
+    r = rand();
+    t = zeros(1,d);
+   for i = 1:d
+       t(1,i) = ((rand()-.5)*50);
+   end
+   if r< p
+       a = [a ;t];
+   else
+       b = [b ;t];
+   end
+  
+end
+end
+function [a,b] = dividePoints(n,d)
+    a = zeros(n,d);
+    b = zeros(n,d);
+    c = zeros(1,d);
+    for i = 1:d-1
+        c(1,i) = randi(5)/randi(5);
+    end
+    c(1,d) = randi(10)-6;
+
+    for i = 1:n
+        for j = 1:d-1
+            a(i,j) = (rand()-.5)*50;
+            b(i,j) = (rand()-.5)*50;
+            a(i,d)= a(i,d)+c(1,j)*a(i,j);
+            b(i,d) = b(i,d)+c(1,j)*b(i,j);
+        end
+        a(i,d) = a(i,d)+c(1,d);
+        b(i,d) = b(i,d)+c(1,d);
+        a(i,d) = a(i,d)+(50*(d-1)*5-a(i,d))*rand();
+        b(i,d) = b(i,d)-(50*(d-1)*5-b(i,d))*rand();
+    end
+
+end
+
+end
