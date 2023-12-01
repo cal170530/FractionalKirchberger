@@ -30,9 +30,9 @@ end
 
 betaActual = zeros(instances,T);
 betaTheory = zeros(instances,T);
-betaTheory_sample = zeros(instances,T);
+betaTheory_sample = zeros(5,instances,T);
 alpha = zeros(instances,T);
-alpha_sample = zeros(instances,T);
+alpha_sample = zeros(5,instances,T);
 
 ahist = zeros(2*numpoints,d,instances,T);
 bhist = zeros(2*numpoints,d,instances,T);
@@ -65,8 +65,8 @@ for trial = 1:T
         [maxdepth, cf(:,inst,trial)] = weakseparator(a,b,d);
 
         betaActual(inst,trial) = maxdepth/(A+B);
-
-        for samp_percent = .05:.05
+        samp_idx = 1;
+        for samp_percent = .01:.018,.1
             [C,Cn] = dptuples(U,d);
             comblength = size(C,3);
             separableTuples = 0;
@@ -112,13 +112,13 @@ for trial = 1:T
                 end
 
             alpha(inst,trial) = separableTuples/comblength;
-            alpha_sample(inst,trial) = separableSamples/sampleSize;
+            alpha_sample(samp_idx,inst,trial) = separableSamples/sampleSize;
 
             betaTheory(inst,trial) = (rFinder(separableTuples,(A+B),d)+d+1)/(A+B);
-            betaTheory_sample(inst,trial) = (rFinder(alpha_sample(1,trial)*comblength,(A+B),d)+d+1)/(A+B);
-
+            betaTheory_sample(samp_idx,inst,trial) = (rFinder(alpha_sample(samp_idx,inst,trial)*comblength,(A+B),d)+d+1)/(A+B);
+            samp_idx= samp_idx+1;
             if trial == 10
-                save('FK_Sampling_'+string(samp_percent)+'_T_'+string(trial));
+                save('FK_SamplingLATEST'+'_T_'+string(trial));
             end
         end 
 
@@ -131,7 +131,8 @@ switch nargout
         varargout = {betaActual,betaTheory,betaTheory_sample,alpha};
     case(5)
         varargout = {betaActual,betaTheory,betaTheory_sample,alpha,alpha_sample};
-   
+    case(6) 
+        varargout = {betaActual,betaTheory,betaTheory_sample,alpha,alpha_sample,cf}
 end
 
 
