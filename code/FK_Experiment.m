@@ -14,10 +14,10 @@ function varargout = FK_experiment(d,numpoints,T,instances)
 %    6) from alpha and alpha_sample, obtain beta_theory and beta_sample. 
 %    7) Store alpha, alpha_sample, beta, beta_theory, beta_sample.  Store
 %    point configuration data. 
-%
+% 
 %
 %EXAMPLE:
-%
+% [betaActual,betaTheory,betaTheory_sample,betaTheory_sample2,alpha,alpha_sample,alpha_sample2] = FK_Experiment(2,10,5,1)
 %  
 switch nargin
     case(2)
@@ -30,10 +30,11 @@ end
 
 betaActual = zeros(instances,T);
 betaTheory = zeros(instances,T);
-betaTheory_sample = zeros(5,instances,T);
+betaTheory_sample = zeros(instances,T);
+betaTheory_sample2 = zeros(instances,T);
 alpha = zeros(instances,T);
-alpha_sample = zeros(5,instances,T);
-
+alpha_sample = zeros(instances,T);
+alpha_sample2 = zeros(instances,T);
 ahist = zeros(2*numpoints,d,instances,T);
 bhist = zeros(2*numpoints,d,instances,T);
 cf = zeros(d+1,instances,T);
@@ -65,22 +66,43 @@ for trial = 1:T
         [maxdepth, cf(:,inst,trial)] = weakseparator(a,b,d);
 
         betaActual(inst,trial) = maxdepth/(A+B);
-        samp_idx = 1;
-        for samp_percent = .01:.018,.1
+
+        for samp_percent = .05:.05:.3
             [C,Cn] = dptuples(U,d);
             comblength = size(C,3);
             separableTuples = 0;
             sampleSize= round((samp_percent)*comblength); 
 
-%%%%%Setup for Sampling Test Results%%%%%%%%
+%%%%%Setup for Sampling Local Test Results%%%%%%%%
             separability = zeros(1,comblength);
             sampleseparability = zeros(1,sampleSize);
             samples= datasample(1:comblength,sampleSize,'Replace',false);
             separableSamples = 0; 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%%%%%Setup for Sampling point subsets%%%%%%%%%
+            sampleSize2 = 0;
+            for i = d+2:(A+B)
+                if nchoosek(i,d+1)>sampleSize
+                    sampleSize2 = i;
+                    break;
+                end
+            end
+            %sampleSize2 = round(samp_percent*(A+B));
+            samplePoints2 = datasample(1:(A+B),sampleSize2,'Replace',false);
+            sampleTuples2 = combnk(samplePoints2,d+1);
+            separability2 = zeros(1,comblength);
+            sampleseparability2 = zeros(1,size(sampleTuples2,1));
+            Cn = sort(Cn,2);
+            sampleTuples2 = sort(sampleTuples2,2);
+            sampleTuples2 = sortrows(sampleTuples2);
+            separableSamples2 = 0;
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
                 for dir = -1:2:1
                     j=1;
+                    k = 1;
     
                     for i = 1:comblength
                         aindex= find(C(:,d+1,i) == 0);
@@ -100,6 +122,10 @@ for trial = 1:T
                             sampleseparability(1,j) = separability(1,i);
                             j = j+1;
                         end
+                        if any(ismember(Cn(i,:),sampleTuples2,'rows'))
+                            sampleseparability2(1,k) = separability(1,i);
+                            k = k+1;
+                        end
  
                     end
                     if (sum(separability(1,:))>separableTuples)
@@ -108,17 +134,19 @@ for trial = 1:T
                     if (sum(sampleseparability(1,:)) > separableSamples)
                         separableSamples = sum(sampleseparability(1,:));
                     end
-
+                    if (sum(sampleseparability2(1,:)) > separableSamples2)
+                        separableSamples2 = sum(sampleseparability2(1,:));
+                    end
                 end
 
             alpha(inst,trial) = separableTuples/comblength;
-            alpha_sample(samp_idx,inst,trial) = separableSamples/sampleSize;
-
+            alpha_sample(inst,trial) = separableSamples/sampleSize;
+            alpha_sample2(inst,trial) = separableSamples2/size(sampleTuples2,1);
             betaTheory(inst,trial) = (rFinder(separableTuples,(A+B),d)+d+1)/(A+B);
-            betaTheory_sample(samp_idx,inst,trial) = (rFinder(alpha_sample(samp_idx,inst,trial)*comblength,(A+B),d)+d+1)/(A+B);
-            samp_idx= samp_idx+1;
+            betaTheory_sample(inst,trial) = (rFinder(alpha_sample(1,trial)*comblength,(A+B),d)+d+1)/(A+B);
+            betaTheory_sample2(inst,trial) = (rFinder(alpha_sample2(1,trial)*comblength,(A+B),d)+d+1)/(A+B);
             if trial == 10
-                save('FK_SamplingLATEST'+'_T_'+string(trial));
+                save('FK_Sampling_Global_Local_T_'+string(trial));
             end
         end 
 
@@ -131,8 +159,9 @@ switch nargout
         varargout = {betaActual,betaTheory,betaTheory_sample,alpha};
     case(5)
         varargout = {betaActual,betaTheory,betaTheory_sample,alpha,alpha_sample};
-    case(6) 
-        varargout = {betaActual,betaTheory,betaTheory_sample,alpha,alpha_sample,cf}
+    case(7)
+        varargout= {betaActual,betaTheory,betaTheory_sample,betaTheory_sample2,alpha,alpha_sample,alpha_sample2}
+   
 end
 
 
